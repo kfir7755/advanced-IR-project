@@ -12,7 +12,7 @@ The data folder should be organized as follows:
 data/
 ├── robust/
     ├── robust03_qrels.txt
-    ├── trec3.results.input.tar
+├── trec3.results.input.tar
 ```
 ### Note
 The data files are not uploaded to this GitHub repository as publishing them is not permitted. However, the QRELs file can be downloaded directly from the following link:
