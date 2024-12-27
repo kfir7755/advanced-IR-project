@@ -17,6 +17,11 @@ if not os.path.exists("results/full_fusion"):
     os.makedirs("results/full_fusion")
 
 
+def r_topics_intersection(r, qrels):
+    intersection = r.topics_intersection_with(qrels)
+    r.run_data = r.run_data[r.run_data["query"].isin(intersection)]
+
+
 def calc_scores_alone(fold, metric):
     output_path = f"results/alone_scores/fold_{fold}_{metric}.csv"
     if os.path.exists(output_path):
@@ -28,13 +33,16 @@ def calc_scores_alone(fold, metric):
     assert len(qrels.topics()) == 80
     for run in runs:
         r = TrecRun(os.path.join("data/ROBUST", run))
+        r_topics_intersection(r, qrels)
+        # r.topics_intersection_with(qrels)
+        assert len(r.topics()) == 80
         if metric == "map":
-            score = TrecEval(r, qrels).get_map(per_query=True).dropna().mean().item()
+            score = TrecEval(r, qrels).get_map()
         elif metric == "p@10":
-            score = TrecEval(r, qrels).get_precision(depth=10, per_query=True).dropna().mean().item()
+            score = TrecEval(r, qrels).get_precision(depth=10)
         else:
             raise NotImplementedError
-        print(f"{run} - {score}")
+        # print(f"{run} - {score}")
         my_dict[run] = score
     df = pd.DataFrame.from_dict(my_dict, orient="index", columns=["score"])
     df.to_csv(output_path)
@@ -46,6 +54,8 @@ def fusion_2(fold, metric, fuse_method):
         return
     my_dict = {}
     runs = os.listdir("data/ROBUST")
+    for run in runs:
+        assert "(1)" not in run
     dir_path = "data/per_fold_qrels"
     qrels = TrecQrel(os.path.join(dir_path, f"fold_{fold}/train.txt"))
     assert len(qrels.topics()) == 80
@@ -56,25 +66,28 @@ def fusion_2(fold, metric, fuse_method):
     for r1 in runs:
         for r2 in runs:
             if r1 < r2:
+                r_topics_intersection(runs_alone[r1], qrels)
+                r_topics_intersection(runs_alone[r2], qrels)
+
                 if fuse_method == "rrf":
                     if metric == "map":
-                        r1_score = TrecEval(runs_alone[r1], qrels).get_map(per_query=True).dropna().mean().item()
-                        r2_score = TrecEval(runs_alone[r2], qrels).get_map(per_query=True).dropna().mean().item()
+                        r1_score = TrecEval(runs_alone[r1], qrels).get_map()
+                        r2_score = TrecEval(runs_alone[r2], qrels).get_map()
                     elif metric == "p@10":
-                        r1_score = TrecEval(runs_alone[r1], qrels).get_precision(depth=10, per_query=True).dropna().mean().item()
-                        r2_score = TrecEval(runs_alone[r2], qrels).get_precision(depth=10, per_query=True).dropna().mean().item()
+                        r1_score = TrecEval(runs_alone[r1], qrels).get_precision(depth=10)
+                        r2_score = TrecEval(runs_alone[r2], qrels).get_precision(depth=10)
                     else:
                         raise NotImplementedError
                     fused_run = weighted_rrf([runs_alone[r1], runs_alone[r2]], [r1_score, r2_score])
                 else:
                     raise NotImplementedError
                 if metric == "map":
-                    score = TrecEval(fused_run, qrels).get_map(per_query=True).dropna().mean().item()
+                    score = TrecEval(fused_run, qrels).get_map()
                 elif metric == "p@10":
-                    score = TrecEval(fused_run, qrels).get_precision(depth=10, per_query=True).dropna().mean().item()
+                    score = TrecEval(fused_run, qrels).get_precision(depth=10)
                 else:
                     raise NotImplementedError
-                print(f"{r1} - {r2} - {score}")
+                # print(f"{r1} - {r2} - {score}")
                 my_dict[(r1, r2)] = score
                 my_dict[(r2, r1)] = score
     data = [(k[0], k[1], v) for k, v in my_dict.items()]  # Flatten the dictionary
@@ -94,9 +107,11 @@ def get_full_fusion_weights(metric, fuse_method, weight_method):
             df = pd.concat([df, pd.DataFrame({"r1": [r], "r2": [r], "score": [score]})], ignore_index=True)
         df = df.groupby(["r1"])["score"].sum().reset_index()
         weight_df = df.copy()
-        if weight_method == "diffscore":
+        if "diffscore" in weight_method:
             weight_df["weight"] = weight_df["score"] - alone_df["score"].sum()
             weight_df = weight_df[["r1", "weight"]]
+            if "ReLU" in weight_method:
+                weight_df["weight"] = weight_df["weight"].apply(lambda x: max(0, x))
         elif weight_method == "fuse2sumscore":
             weight_df["weight"] = weight_df["score"]
             weight_df = weight_df[["r1", "weight"]]
@@ -115,17 +130,18 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
 
     results = []
     runs = os.listdir("data/ROBUST")
-    runs_alone = {run: TrecRun(os.path.join("data/ROBUST", run)) for run in runs}
-
     for fold in tqdm(range(1, 6), desc="Processing folds"):
-        row = {"fold": fold}
         qrels = TrecQrel(os.path.join(qrels_dir_path, f"fold_{fold}/test.txt"))
+        runs_alone = {run: TrecRun(os.path.join("data/ROBUST", run)) for run in runs}
+        for r in runs_alone.values():
+            r_topics_intersection(r, qrels)
+        row = {"fold": fold}
 
         for weight_method in tqdm(weight_methods, desc="Processing weight methods"):
             weights = []
             trec_runs = []
 
-            if weight_method == metric:
+            if weight_method == "metric":
                 alone_df = pd.read_csv(f"results/alone_scores/fold_{fold}_{metric}.csv")
                 for _, row_data in alone_df.iterrows():
                     run_name = row_data["Unnamed: 0"]
@@ -133,7 +149,7 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
                     trec_runs.append(runs_alone[run_name])
                     weights.append(weight)
 
-            elif weight_method in ["diffscore", "fuse2sumscore"]:
+            elif weight_method in ["diffscore", "ReLUdiffscore", "fuse2sumscore"]:
                 weights_df = pd.read_csv(f"results/weights/fold_{fold}_{metric}_{fuse_method}_{weight_method}.csv")
                 for _, row_data in weights_df.iterrows():
                     run_name = row_data["r1"]
@@ -148,15 +164,8 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
             if fuse_method == "rrf":
                 fused_run = weighted_rrf(trec_runs, weights)
                 trec_eval = TrecEval(fused_run, qrels)
-                maps = trec_eval.get_map(per_query=True).dropna()
-                map_score = maps.mean().item()
-                # map_std = maps.std().item()
-                p_at_10s = trec_eval.get_precision(depth=10, per_query=True).dropna()
-                p_at_10 = p_at_10s.mean().item()
-                # p_at_10_std = p_at_10s.std().item()
-
-                # row[f"{weight_method}_map"] = f"{map_score} ± {map_std}"
-                # row[f"{weight_method}_p@10"] = f"{p_at_10} ± {p_at_10_std}"
+                map_score = trec_eval.get_map()
+                p_at_10 = trec_eval.get_precision(depth=10)
                 row[f"{weight_method}_map"] = map_score
                 row[f"{weight_method}_p@10"] = p_at_10
             else:
@@ -172,22 +181,26 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
 if __name__ == "__main__":
     metrics = ["map", "p@10"]  # "map" or "p@10" or "J-measure"
     fuse_methods = ["rrf"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
-    # "diffscore" or "fuse2sumscore", previous methods are "metric" or "uniform"
-    weight_methods = ["diffscore", "fuse2sumscore", "map", "uniform"]
+    # "diffscore" or "ReLUdiffscore" or "fuse2sumscore", previous methods are "metric" or "uniform"
+    weight_methods = ["diffscore", "ReLUdiffscore", "fuse2sumscore", "metric", "uniform"]
     # for metric in metrics:
     #     for fuse_method in fuse_methods:
-    for metric, fuse_method in tqdm(product(metrics, fuse_methods), desc="iterating all metrics and fusion methods"):
-        for fold in tqdm(range(1, 6), desc="Calculating scores alone"):
-            calc_scores_alone(fold, metric)
-
-        for fold in tqdm(range(1, 6), desc="Calculating fusion2"):
-            fusion_2(fold, metric, fuse_method)
-
-        for weight_method in ["diffscore", "fuse2sumscore"]:
-            get_full_fusion_weights(metric, fuse_method, weight_method=weight_method)
+    my_list = product(metrics, fuse_methods)
+    for metric, fuse_method in tqdm(my_list, desc="iterating all metrics and fusion methods", total=len(metrics) * len(fuse_methods)):
+        # for fold in tqdm(range(1, 6), desc="Calculating scores alone"):
+        #     calc_scores_alone(fold, metric)
+        #
+        # for fold in tqdm(range(1, 6), desc="Calculating fusion2"):
+        #     fusion_2(fold, metric, fuse_method)
+        #
+        # for weight_method in ["diffscore", "ReLUdiffscore", "fuse2sumscore"]:
+        #     get_full_fusion_weights(metric, fuse_method, weight_method=weight_method)
 
         full_res_df = eval_full_fusion(weight_methods, metric, fuse_method)
-        cols_lst = [col for col in full_res_df.columns if "map" in col]
+        map_cols = [col for col in full_res_df.columns if col.endswith("_map")]
+        p_cols = [col for col in full_res_df.columns if str(col).endswith("_p@10")]
         print(f"metric-{metric}, fuse_method-{fuse_method}:")
-        print(full_res_df[cols_lst])
-        print(full_res_df[cols_lst].mean(axis=0))
+        print(full_res_df[map_cols])
+        print(full_res_df[map_cols].mean(axis=0))
+        print(full_res_df[p_cols])
+        print(full_res_df[p_cols].mean(axis=0))
