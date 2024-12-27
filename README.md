@@ -25,15 +25,14 @@ The data files are not uploaded to this GitHub repository as publishing them is 
    python "per query qrels file.py"
    ```
 
-2. **Main File:**
-   Use the main file to generate results.
-   ```bash
-   python main.py
-   ```
-
-3. **Create Folds:**
+2. **Create Folds:**
    Run the `create folds.py` script to create 5 folds (or more accurately cross-test folds) for cross-validation.
    ```bash
    python "create folds.py"
    ```
 
+3. **Main File:**
+   Use the main file to generate results.
+   ```bash
+   python main.py
+   ```
