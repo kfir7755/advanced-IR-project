@@ -10,9 +10,9 @@ pip install trectools
 The data folder should be organized as follows:
 ```
 data/
-├── robust
-├── robust03_qrels.txt
-├── trec3.results.input.tar
+   ├── robust
+   ├── robust03_qrels.txt
+   ├── trec3.results.input.tar
 ```
 make sure to remove the duplicate run inside robust
 ### Note
