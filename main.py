@@ -2,7 +2,7 @@ from trectools import TrecQrel, TrecRun, TrecEval
 import pandas as pd
 import os
 from tqdm import tqdm
-from fusion_methods import weighted_rrf, weighted_borda
+from fusion_methods import weighted_rrf, weighted_borda,weighted_min_max,weighted_sumnorm
 from itertools import product
 
 if not os.path.exists("results/alone_scores"):
@@ -82,8 +82,13 @@ def fusion_2(fold, metric, fuse_method):
                     fused_run = weighted_rrf([runs_alone[r1], runs_alone[r2]], [r1_score, r2_score])
                 elif fuse_method == "borda":
                     fused_run = weighted_borda([runs_alone[r1], runs_alone[r2]], [r1_score, r2_score])
+                elif fuse_method == "minmaxnorm":
+                    fused_run = weighted_min_max([runs_alone[r1], runs_alone[r2]], [r1_score, r2_score])
+                elif fuse_method == "sumnorm":
+                    fused_run = weighted_sumnorm([runs_alone[r1], runs_alone[r2]], [r1_score, r2_score])
                 else:
                     raise NotImplementedError
+
                 if metric == "map":
                     score = TrecEval(fused_run, qrels).get_map()
                 elif metric == "p@10":
@@ -168,6 +173,10 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
                 fused_run = weighted_rrf(trec_runs, weights)
             elif fuse_method == "borda":
                 fused_run = weighted_borda(trec_runs, weights)
+            elif fuse_method == "minmaxnorm":
+                fused_run = weighted_min_max(trec_runs, weights)
+            elif fuse_method == "sumnorm":
+                fused_run = weighted_sumnorm(trec_runs, weights)
             else:
                 raise NotImplementedError
             trec_eval = TrecEval(fused_run, qrels)
@@ -186,7 +195,7 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
 if __name__ == "__main__":
     metrics = ["map", "p@10"]  # "map" or "p@10" or "J-measure"
     # fuse_methods = ["rrf", "borda"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
-    fuse_methods = ["borda"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
+    fuse_methods = ["minmaxnorm","sumnorm"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
     # "diffscore" or "ReLUdiffscore" or "fuse2sumscore", previous methods are "metric" or "uniform"
     weight_methods = ["diffscore", "ReLUdiffscore", "fuse2sumscore", "metric", "uniform"]
     # for metric in metrics:
