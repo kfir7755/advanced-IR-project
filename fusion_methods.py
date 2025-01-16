@@ -131,22 +131,25 @@ def weighted_min_max(trec_runs, weights, max_docs=1000):
         # Store documents for each run in a dictionary
         run_docs = {}
         for r in trec_runs:
-            docs = r.get_top_documents(topic, n=1000)
+            docs = r.get_top_documents(topic, n=max_docs)
             run_docs[r] = docs
             all_docs.update(docs)
 
-        min_weight = min(weights)
-        max_weight = max(weights)
+
         # Calculate scores using stored documents
         for r, weight in zip(trec_runs, weights):
-            docs_for_run = run_docs[r]
 
-            # Score documents that appear in this run
-            for docid in docs_for_run:
-                if max_weight != min_weight:
-                    doc_scores[docid] = doc_scores.get(docid, 0.0) + (weight - min_weight) / (max_weight - min_weight)
-                else:
-                    doc_scores[docid] = doc_scores.get(docid, 0.0)
+            docs_for_run = run_docs[r]
+            scores = list(r.run_data[r.run_data['query'] == topic]["score"].head(max_docs))
+            #scores already sorted in self.run_data
+            # min_score, max_score = min(scores), max(scores)
+            min_score, max_score = scores[-1], scores[0]
+            score_range = max_score - min_score if max_score != min_score else 1 #check if need to change
+
+            # Apply normalization and weight
+            for doc, score in zip(docs_for_run,scores):
+                normalized_score = (score - min_score) / score_range
+                doc_scores[doc] = doc_scores.get(doc, 0.0) + weight * normalized_score
 
         # Sort by score (descending) and then by docid (ascending) for consistent tie-breaking
         sorted_docs = sorted(doc_scores.items(), key=lambda x: (-x[1], x[0]))[:max_docs]
@@ -178,11 +181,12 @@ def weighted_sumnorm(trec_runs, weights, max_docs=1000):
             run_docs[r] = docs
             all_docs.update(docs)
 
-        top100_sum = np.nansum(np.sort(weights)[-100:])
+
         # Calculate scores using stored documents
         for r, weight in zip(trec_runs, weights):
             docs_for_run = run_docs[r]
-
+            scores = list(r.run_data[r.run_data['query'] == topic]["score"].head(max_docs))
+            top100_sum = np.nansum(scores[:100]) #already sorted
             # Score documents that appear in this run
             for docid in docs_for_run:
                 if top100_sum!=0:
@@ -202,99 +206,4 @@ def weighted_sumnorm(trec_runs, weights, max_docs=1000):
     merged_run.load_run_from_dataframe(df)
 
     return merged_run
-#
-# def combos(trec_runs, weights, strategy="minmax", max_docs=1000):
-#     """
-#         Implements a many of the traditional score fusion methods. Use the parameter strategy to pick a method.
-#
-#         Parameters:
-#             trec_runs: a list of TrecRun objects to fuse
-#            strategy: "sum", "max", "min", "anz", "mnz", "med"
-#             max_docs: can be either a single integer or a dict{qid,value}
-#     """
-#     dfs = []
-#     for t in trec_runs:
-#         dfs.append(t.run_data)
-#
-#     # Merge all runs
-#     """
-#     merged = reduce(lambda left,right: pd.merge(left, right, right_on=["query","docid"], left_on=["query","docid"], how="outer",
-#         suffixes=("","_")), dfs)
-#     merged = merged[["query", "docid", "score", "score_"]]
-#     """
-#
-#     if len(dfs) < 2:
-#         return
-#
-#     merged = pd.merge(dfs[0], dfs[1], right_on=["query", "docid"], left_on=["query", "docid"], how="outer", suffixes=("", "_"))
-#     merged = merged[["query", "q0", "docid", "score", "score_"]]
-#
-#     for d in dfs[2:]:
-#         merged = pd.merge(merged, d, right_on=["query", "docid"], left_on=["query", "docid"], how="outer", suffixes=("", "_"))
-#         merged = merged[["query", "q0", "docid", "score", "score_"]]
-#
-#     # merged["query"] = merged["query"].astype(str).apply(lambda x:x.strip())
-#     # return merged
-#
-#     # merged.fillna(0.0, inplace=True) <- not filling nan's. Instead, I am using np.nan* functions
-#     # TODO: add option to normalize values
-#     # TODO: add option to act on the rank of documents instead of their scores
-#
-#     if strategy == "minmaxnorm":
-#         # def minmax_scale(values):
-#         #     min_score = np.nanmin(values)
-#         #     max_score = np.nanmax(values)
-#         #     if max_score==min_score:
-#         #         return values
-#         #     return (values - min_score)/(max_score - min_score)
-#         def minmax_scale(values):
-#             min_score = np.nanmin(values, axis=1, keepdims=True)
-#             max_score = np.nanmax(values, axis=1, keepdims=True)
-#             with np.errstate(invalid='ignore', divide='ignore'):
-#                 result = (values - min_score) / (max_score - min_score)
-#             result[np.isnan(result)] = 0  # Handle NaNs after division
-#             return np.nanmean(result, axis=1)  # Average score per document
-#
-#         merged["ans"] = minmax_scale(merged[["score", "score_"]].values)
-#
-#     elif strategy == "sumnorm":
-#         # def normalize_by_top100_sum(scores):
-#         #     top100_docs_sum = np.nansum(np.sort(scores)[-100:])
-#         #     if top100_docs_sum==0:
-#         #         return scores
-#         #     return scores/top100_docs_sum
-#         def normalize_by_top100_sum(scores):
-#             top100_sum = np.nansum(np.sort(scores, axis=1)[:, -100:], axis=1)
-#             normalized = np.divide(scores.sum(axis=1), top100_sum, out=np.zeros_like(scores.sum(axis=1)),
-#                                    where=top100_sum != 0)
-#             return normalized
-#
-#         merged["ans"] = normalize_by_top100_sum(merged[["score", "score_"]].values)
-#
-#     else:
-#         print("Unknown strategy %s. Options are: 'minmaxnorm','sumnorm" % (strategy))
-#         return None
-#
-#     # merged["ans"] = merged[["score", "score_"]].apply(merge_func, raw=True, axis=1)
-#     #TODO: verify this is corrrect
-#     # merged["ans"] = minmax_scale(merged["score"].fillna(0) + merged["score_"].fillna(0))
-#     merged.sort_values(["query", "ans"], ascending=[True, False], inplace=True)
-#
-#     rows = []
-#     for topic in merged['query'].unique():
-#         merged_topic = merged[merged['query'] == topic]
-#         if type(max_docs) == dict:
-#             maxd = max_docs[topic]
-#             for rank, (docid, score) in enumerate(merged_topic[["docid", "ans"]].head(maxd).values, start=1):
-#                 rows.append((topic, "Q0", docid, rank, score, "comb_%s" % strategy))
-#         else:
-#             for rank, (docid, score) in enumerate(merged_topic[["docid", "ans"]].head(max_docs).values, start=1):
-#                 rows.append((topic, "Q0", docid, rank, score, "comb_%s" % strategy))
-#
-#     merged_run = TrecRun(None)
-#     df = pd.DataFrame(rows)
-#     df.columns = ["query", "q0", "docid", "rank", "score", "system"]
-#     merged_run.load_run_from_dataframe(df)
-#
-#     return merged_run
 
