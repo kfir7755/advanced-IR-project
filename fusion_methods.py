@@ -188,11 +188,11 @@ def weighted_sumnorm(trec_runs, weights, max_docs=1000):
             scores = list(r.run_data[r.run_data['query'] == topic]["score"].head(max_docs))
             top100_sum = np.nansum(scores[:100]) #already sorted
             # Score documents that appear in this run
-            for docid in docs_for_run:
+            for doc, score in zip(docs_for_run,scores):
                 if top100_sum!=0:
-                    doc_scores[docid] = doc_scores.get(docid, 0.0) + weight/top100_sum
+                    doc_scores[doc] = doc_scores.get(doc, 0.0) + weight*(score/top100_sum)
                 else:
-                    doc_scores[docid] = doc_scores.get(docid, 0.0)
+                    doc_scores[doc] = doc_scores.get(doc, 0.0)
 
         # Sort by score (descending) and then by docid (ascending) for consistent tie-breaking
         sorted_docs = sorted(doc_scores.items(), key=lambda x: (-x[1], x[0]))[:max_docs]
