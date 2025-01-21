@@ -195,7 +195,7 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
 if __name__ == "__main__":
     metrics = ["map", "p@10"]  # "map" or "p@10" or "J-measure"
     # fuse_methods = ["rrf", "borda"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
-    fuse_methods = ["sumnorm"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
+    fuse_methods = ["rrf", "borda", "minmaxnorm", "sumnorm"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
     # "diffscore" or "ReLUdiffscore" or "fuse2sumscore", previous methods are "metric" or "uniform"
     weight_methods = ["diffscore", "ReLUdiffscore", "fuse2sumscore", "metric", "uniform"]
     # for metric in metrics:

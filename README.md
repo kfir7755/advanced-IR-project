@@ -3,7 +3,7 @@
 ## Installation
 To install the required package, run the following command:
 ```bash
-pip install trectools
+pip install trectools tqdm
 ```
 
 ## Data Folder Structure
