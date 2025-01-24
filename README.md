@@ -5,7 +5,10 @@ To install the required package, run the following command:
 ```bash
 pip install trectools tqdm
 ```
-
+if you wish to get a .tex version of the results also run the following command:
+```bash
+pip install Jinja2
+```
 ## Data Folder Structure
 The data folder should be organized as follows:
 ```
