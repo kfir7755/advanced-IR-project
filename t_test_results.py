@@ -41,13 +41,13 @@ for (fusion_method, weight_method), fold_data in grouped_data.items():
 # Step 3: Perform T-tests
 t_test_results = []
 
-# Retrieve uniform data
-for (fusion_method, weight_method), data in concatenated_data_dict.items():
-    if weight_method == "uniform":
-        uniform_data = data["APs"].values
-        break
-else:
-    raise ValueError("No uniform fusion method found in the data.")
+# # Retrieve uniform data
+# for (fusion_method, weight_method), data in concatenated_data_dict.items():
+#     if weight_method == "uniform":
+#         uniform_data = data["APs"].values
+#         break
+# else:
+#     raise ValueError("No uniform fusion method found in the data.")
 
 # Compare uniform to each other method
 for (fusion_method, weight_method), data in concatenated_data_dict.items():
@@ -55,6 +55,7 @@ for (fusion_method, weight_method), data in concatenated_data_dict.items():
         continue  # Skip uniform itself
 
     current_data = data["APs"].values
+    uniform_data = concatenated_data_dict[(fusion_method, "uniform")]["APs"].values
     # Perform T-test
     t_stat, p_value = ttest_rel(uniform_data, current_data)
 
