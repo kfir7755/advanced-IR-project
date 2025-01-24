@@ -136,7 +136,6 @@ def get_full_fusion_weights(metric, fuse_method, weight_method):
 def eval_full_fusion(weight_methods, metric, fuse_method):
     dir_path = "results/full_fusion"
     qrels_dir_path = "data/per_fold_qrels"
-    full_retrieval_path ="results/full_retrieval"
     output_path = os.path.join(dir_path, f"{metric}_{fuse_method}.csv")
 
     if os.path.exists(output_path):
@@ -187,10 +186,8 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
                 raise NotImplementedError
             trec_eval = TrecEval(fused_run, qrels)
             fused_run.run_data.to_csv(f"results/full_retrieval/full_fold_{fold}_{fuse_method}_{weight_method}.csv", index=False)
-            # print(f"Fused run saved to: results/full_retrieval/full_fold_{fold}_{fuse_method}_{weight_method}.csv")
             ap_score_per_query = trec_eval.get_map(depth=100,per_query=True)
             ap_score_per_query.to_csv(f"results/ap_per_query/ap_fold_{fold}_{fuse_method}_{weight_method}.csv", index=False,header=False)
-            # print(f"AP scores per query saved to: results/ap_per_query/ap_fold_{fold}_{fuse_method}_{weight_method}.csv")
             map_score = trec_eval.get_map(depth=100,per_query=False)
             p_at_10 = trec_eval.get_precision(depth=10)
             row[f"{weight_method}_map"] = map_score
@@ -204,16 +201,15 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
 
 
 if __name__ == "__main__":
-    metrics = ["map"]  # "map" or "p@10" or "J-measure"
-    # fuse_methods = ["rrf", "borda"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
-    fuse_methods = ["rrf"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
+    metrics = ["map", "p@10"]  # "map" or "p@10"
+    fuse_methods = ["rrf", "borda", "minmaxnorm", "sumnorm"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
     # "diffscore" or "ReLUdiffscore" or "fuse2sumscore", previous methods are "metric" or "uniform"
     weight_methods = ["diffscore", "ReLUdiffscore", "fuse2sumscore", "metric", "uniform"]
-    # for metric in metrics:
-    #     for fuse_method in fuse_methods:
+
     my_list = product(metrics, fuse_methods)
     for metric, fuse_method in tqdm(my_list, desc="iterating all metrics and fusion methods",
                                     total=len(metrics) * len(fuse_methods)):
+        
         for fold in tqdm(range(1, 6), desc="Calculating scores alone"):
             calc_scores_alone(fold, metric)
 

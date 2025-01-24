@@ -32,8 +32,7 @@ for file_name in os.listdir(results_dir):
 concatenated_data_dict = {}
 for (fusion_method, weight_method), fold_data in grouped_data.items():
     # Sort by fold number
-    # print(fold_data)
-    # fold_data.sort(key=lambda x: x[0])  # Sort by fold number (first element of tuple)
+    fold_data.sort(key=lambda x: x[0])  # Sort by fold number (first element of tuple)
     # Concatenate all APs values in the correct order
     concatenated_data = pd.concat([df for _, df in fold_data], ignore_index=True)
     concatenated_data_dict[(fusion_method, weight_method)] = concatenated_data
@@ -41,31 +40,47 @@ for (fusion_method, weight_method), fold_data in grouped_data.items():
 # Step 3: Perform T-tests
 t_test_results = []
 
-# # Retrieve uniform data
-# for (fusion_method, weight_method), data in concatenated_data_dict.items():
-#     if weight_method == "uniform":
-#         uniform_data = data["APs"].values
-#         break
-# else:
-#     raise ValueError("No uniform fusion method found in the data.")
+# Retrieve uniform and metric data
+uniform_data = concatenated_data_dict[(fusion_method, "uniform")]["APs"].values
+metric_data = concatenated_data_dict[(fusion_method, "metric")]["APs"].values
 
-# Compare uniform to each other method
+alpha = 0.05
+
+# Compare uniform and metric to each new method
 for (fusion_method, weight_method), data in concatenated_data_dict.items():
-    if weight_method == "uniform":
-        continue  # Skip uniform itself
+    if weight_method in ["uniform", "metric"]:
+        continue  # Skip existing methods since we already loaded them for comparison
 
     current_data = data["APs"].values
-    uniform_data = concatenated_data_dict[(fusion_method, "uniform")]["APs"].values
+
+    ################
+    # differences = current_data - uniform_data
+    # mean_diff = differences.mean()
+    # std_diff = differences.std()
+    # n_diff = len(differences)
+    # t_value = mean_diff / (std_diff / n_diff ** 0.5)
+    # print(fusion_method, weight_method)
+    # print(t_value)
+    # print(std_diff)
+    # print(mean_diff)
+    # print()
+    # print()
+    ################
+
     # Perform T-test
-    t_stat, p_value = ttest_rel(uniform_data, current_data)
+    t_stat_uniform, p_value_uniform = ttest_rel(uniform_data, current_data, alternative="less")
+    t_stat_metric, p_value_metric = ttest_rel(metric_data, current_data, alternative="less")
 
     # Store the result
     t_test_results.append({
         "Fusion Method": fusion_method,
         "Weight Method": weight_method,
-        "T-Statistic": t_stat,
-        "P-Value": p_value,
-        "Significant": p_value < 0.05
+        "T-Statistic uniform": t_stat_uniform,
+        "P-Value uniform": p_value_uniform,
+        "Significant uniform": p_value_uniform < alpha,
+        "T-Statistic metric": t_stat_metric,
+        "P-Value metric": p_value_metric,
+        "Significant metric": p_value_metric < alpha
     })
 
 # Step 4: Save results
@@ -73,4 +88,5 @@ output_file = "results/t_test_summary.csv"
 t_test_df = pd.DataFrame(t_test_results)
 t_test_df.to_csv(output_file, index=False)
 
+print(t_test_df)
 print(f"T-test completed. Results saved to {output_file}.")
