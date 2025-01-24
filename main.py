@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from tqdm import tqdm
 from fusion_methods import weighted_rrf, weighted_borda,weighted_min_max,weighted_sumnorm
+from remove_bad_rankers import get_good_rankers_robust
 from itertools import product
 
 if not os.path.exists("results/alone_scores"):
@@ -27,7 +28,7 @@ def calc_scores_alone(fold, metric):
     if os.path.exists(output_path):
         return
     my_dict = {}
-    runs = os.listdir("data/ROBUST")
+    runs = get_good_rankers_robust()
     dir_path = "data/per_fold_qrels"
     qrels = TrecQrel(os.path.join(dir_path, f"fold_{fold}/train.txt"))
     assert len(qrels.topics()) == 80
@@ -37,7 +38,7 @@ def calc_scores_alone(fold, metric):
         # r.topics_intersection_with(qrels)
         assert len(r.topics()) == 80
         if metric == "map":
-            score = TrecEval(r, qrels).get_map()
+            score = TrecEval(r, qrels).get_map(depth=100)
         elif metric == "p@10":
             score = TrecEval(r, qrels).get_precision(depth=10)
         else:
@@ -53,7 +54,7 @@ def fusion_2(fold, metric, fuse_method):
     if os.path.exists(output_path):
         return
     my_dict = {}
-    runs = os.listdir("data/ROBUST")
+    runs = get_good_rankers_robust()
     for run in runs:
         assert "(1)" not in run
     dir_path = "data/per_fold_qrels"
@@ -70,8 +71,8 @@ def fusion_2(fold, metric, fuse_method):
                 r_topics_intersection(runs_alone[r2], qrels)
 
                 if metric == "map":
-                    r1_score = TrecEval(runs_alone[r1], qrels).get_map()
-                    r2_score = TrecEval(runs_alone[r2], qrels).get_map()
+                    r1_score = TrecEval(runs_alone[r1], qrels).get_map(depth=100)
+                    r2_score = TrecEval(runs_alone[r2], qrels).get_map(depth=100)
                 elif metric == "p@10":
                     r1_score = TrecEval(runs_alone[r1], qrels).get_precision(depth=10)
                     r2_score = TrecEval(runs_alone[r2], qrels).get_precision(depth=10)
@@ -90,7 +91,7 @@ def fusion_2(fold, metric, fuse_method):
                     raise NotImplementedError
 
                 if metric == "map":
-                    score = TrecEval(fused_run, qrels).get_map()
+                    score = TrecEval(fused_run, qrels).get_map(depth=100)
                 elif metric == "p@10":
                     score = TrecEval(fused_run, qrels).get_precision(depth=10)
                 else:
@@ -137,7 +138,7 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
         return pd.read_csv(output_path)
 
     results = []
-    runs = os.listdir("data/ROBUST")
+    runs = get_good_rankers_robust()
     for fold in tqdm(range(1, 6), desc="Processing folds"):
         qrels = TrecQrel(os.path.join(qrels_dir_path, f"fold_{fold}/test.txt"))
         runs_alone = {run: TrecRun(os.path.join("data/ROBUST", run)) for run in runs}
@@ -180,7 +181,7 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
             else:
                 raise NotImplementedError
             trec_eval = TrecEval(fused_run, qrels)
-            map_score = trec_eval.get_map()
+            map_score = trec_eval.get_map(depth=100)
             p_at_10 = trec_eval.get_precision(depth=10)
             row[f"{weight_method}_map"] = map_score
             row[f"{weight_method}_p@10"] = p_at_10
