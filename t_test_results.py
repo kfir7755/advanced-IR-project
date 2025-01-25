@@ -68,8 +68,8 @@ for (fusion_method, weight_method), data in concatenated_data_dict.items():
     ################
 
     # Perform T-test
-    t_stat_uniform, p_value_uniform = ttest_rel(uniform_data, current_data, alternative="less")
-    t_stat_metric, p_value_metric = ttest_rel(metric_data, current_data, alternative="less")
+    t_stat_uniform, p_value_uniform = ttest_rel(uniform_data, current_data)
+    t_stat_metric, p_value_metric = ttest_rel(metric_data, current_data)
 
     # Store the result
     t_test_results.append({
