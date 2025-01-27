@@ -40,14 +40,14 @@ for (fusion_method, weight_method), fold_data in grouped_data.items():
 # Step 3: Perform T-tests
 t_test_results = []
 
-# Retrieve uniform and metric data
-uniform_data = concatenated_data_dict[(fusion_method, "uniform")]["APs"].values
-metric_data = concatenated_data_dict[(fusion_method, "metric")]["APs"].values
-
 alpha = 0.05
 
 # Compare uniform and metric to each new method
 for (fusion_method, weight_method), data in concatenated_data_dict.items():
+    # Retrieve uniform and metric data
+    uniform_data = concatenated_data_dict[(fusion_method, "uniform")]["APs"].values
+    metric_data = concatenated_data_dict[(fusion_method, "metric")]["APs"].values
+
     if weight_method in ["uniform", "metric"]:
         continue  # Skip existing methods since we already loaded them for comparison
 
@@ -75,17 +75,22 @@ for (fusion_method, weight_method), data in concatenated_data_dict.items():
     t_test_results.append({
         "Fusion Method": fusion_method,
         "Weight Method": weight_method,
+        "MAP": current_data.mean(),
         "T-Statistic uniform": t_stat_uniform,
-        "P-Value uniform": p_value_uniform,
+        "uniform MAP": uniform_data.mean(),
+        "P-Value uniform": f"{p_value_uniform:.5f}",
         "Significant uniform": p_value_uniform < alpha,
         "T-Statistic metric": t_stat_metric,
-        "P-Value metric": p_value_metric,
+        "metric MAP": metric_data.mean(),
+        "P-Value metric": f"{p_value_metric:.5f}",
         "Significant metric": p_value_metric < alpha
     })
 
 # Step 4: Save results
 output_file = "results/t_test_summary.csv"
 t_test_df = pd.DataFrame(t_test_results)
+t_test_df = t_test_df[["Weight Method", "Fusion Method", "MAP", "T-Statistic uniform", "uniform MAP", "P-Value uniform", "Significant uniform", "T-Statistic metric", "metric MAP", "P-Value metric", "Significant metric"]]
+t_test_df = t_test_df.sort_values(by="Weight Method")
 t_test_df.to_csv(output_file, index=False)
 
 print(t_test_df)
