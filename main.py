@@ -36,7 +36,7 @@ def calc_scores_alone(fold, metric, dataset):
     if os.path.exists(output_path):
         return
     my_dict = {}
-    runs = get_good_rankers(os.path.join("data", dataset), eval(f"{dataset}_n_queries"), eval(f"{dataset}_top_k_docs"))
+    runs = get_good_rankers(os.path.join("data", dataset), eval(f"{dataset.lower()}_n_queries"), eval(f"{dataset.lower()}_top_k_docs"))
     dir_path = f"data/{dataset}/per_fold_qrels"
     qrels = TrecQrel(os.path.join(dir_path, f"fold_{fold}/train.txt"))
     if dataset == "ROBUST":
@@ -44,7 +44,7 @@ def calc_scores_alone(fold, metric, dataset):
     else:
         assert len(qrels.topics()) == 40
     for run in runs:
-        r = TrecRun(os.path.join("data/ROBUST", run))
+        r = TrecRun(os.path.join("data", dataset, "rankers", run))
         r_topics_intersection(r, qrels)
 
         if dataset == "ROBUST":
@@ -69,7 +69,7 @@ def fusion_2(fold, metric, fuse_method, dataset):
     if os.path.exists(output_path):
         return
     my_dict = {}
-    runs = get_good_rankers(os.path.join("data", dataset), eval(f"{dataset}_n_queries"), eval(f"{dataset}_top_k_docs"))
+    runs = get_good_rankers(os.path.join("data", dataset), eval(f"{dataset.lower()}_n_queries"), eval(f"{dataset.lower()}_top_k_docs"))
     for run in runs:
         assert "(1)" not in run
     dir_path = f"data/{dataset}/per_fold_qrels"
@@ -158,7 +158,7 @@ def eval_full_fusion(weight_methods, metric, fuse_method, dataset):
         return pd.read_csv(output_path)
 
     results = []
-    runs = get_good_rankers(os.path.join("data", dataset), eval(f"{dataset}_n_queries"), eval(f"{dataset}_top_k_docs"))
+    runs = get_good_rankers(os.path.join("data", dataset), eval(f"{dataset.lower()}_n_queries"), eval(f"{dataset.lower()}_top_k_docs"))
     for fold in tqdm(range(1, 6), desc="Processing folds"):
         qrels = TrecQrel(os.path.join(qrels_dir_path, f"fold_{fold}/test.txt"))
         runs_alone = {run: TrecRun(os.path.join("data", dataset, "rankers", run)) for run in runs}
@@ -229,7 +229,7 @@ if __name__ == "__main__":
 
     my_list = product(datasets, metrics, fuse_methods)
     for dataset, metric, fuse_method in tqdm(my_list, desc="iterating all datasets, metrics and fusion methods",
-                                    total=len(my_list)):
+                                    total=len(datasets) * len(metrics) * len(fuse_methods)):
         
         for fold in tqdm(range(1, 6), desc="Calculating scores alone"):
             calc_scores_alone(fold, metric, dataset)

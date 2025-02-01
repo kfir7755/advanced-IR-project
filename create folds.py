@@ -48,12 +48,16 @@ for dataset in datasets:
         train_folds = folds[:i] + folds[i + 1:]
         test_fold = folds[i]
 
-        for output_path in [train_output_file, test_output_file]:
-            with open(output_path, 'w') as out_file:
-                for topic in test_fold:
-                    path = os.path.join(in_dir_path, f"{topic}.txt")
+        with open(test_output_file, 'w') as out_file:
+            for topic in test_fold:
+                path = f"data/{dataset}/per_query_qrels/{topic}.txt"
+                with open(path, 'r') as in_file:
+                    for line in in_file:
+                        out_file.write(line)
+        with open(train_output_file, 'w') as out_file:
+            for fold in train_folds:
+                for topic in fold:
+                    path = f"data/{dataset}/per_query_qrels/{topic}.txt"
                     with open(path, 'r') as in_file:
                         for line in in_file:
                             out_file.write(line)
-
-

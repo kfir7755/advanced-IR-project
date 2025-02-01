@@ -1,0 +1,18 @@
+\begin{tabular}{llrrrrrrrrrr}
+\toprule
+ & weight method & \multicolumn{2}{c}{ReLUdiffscore} & \multicolumn{2}{c}{diffscore} & \multicolumn{2}{c}{fuse2sumscore} & \multicolumn{2}{c}{metric} & \multicolumn{2}{c}{uniform} \\
+ & evaluation metric & map & p@10 & map & p@10 & map & p@10 & map & p@10 & map & p@10 \\
+metric_used & fusion_method &  &  &  &  &  &  &  &  &  &  \\
+\midrule
+\multirow[t]{4}{*}{map} & borda & 0.242 & 0.758 & 0.243 & 0.762 & 0.235 & 0.738 & 0.237 & 0.748 & 0.233 & 0.734 \\
+ & minmaxnorm & 0.250 & 0.760 & 0.250 & 0.760 & 0.239 & 0.750 & 0.242 & 0.744 & 0.236 & 0.744 \\
+ & rrf & 0.248 & 0.756 & 0.248 & 0.756 & 0.235 & 0.746 & 0.238 & 0.748 & 0.232 & 0.732 \\
+ & sumnorm & 0.245 & 0.744 & 0.199 & 0.668 & 0.235 & 0.742 & 0.228 & 0.734 & 0.215 & 0.718 \\
+\cline{1-12}
+\multirow[t]{4}{*}{p@10} & borda & 0.240 & 0.754 & 0.241 & 0.758 & 0.234 & 0.736 & 0.236 & 0.744 & 0.233 & 0.734 \\
+ & minmaxnorm & 0.248 & 0.758 & 0.248 & 0.758 & 0.238 & 0.750 & 0.240 & 0.748 & 0.236 & 0.744 \\
+ & rrf & 0.243 & 0.750 & 0.243 & 0.750 & 0.235 & 0.742 & 0.236 & 0.748 & 0.232 & 0.732 \\
+ & sumnorm & 0.244 & 0.748 & 0.209 & 0.684 & 0.228 & 0.742 & 0.225 & 0.730 & 0.215 & 0.718 \\
+\cline{1-12}
+\bottomrule
+\end{tabular}

@@ -172,14 +172,14 @@ def weighted_sumnorm(trec_runs, weights, max_docs=1000):
 
     for topic in sorted(topics):
         doc_scores = {}
-        all_docs = set()
+        # all_docs = set()
 
         # Store documents for each run in a dictionary
         run_docs = {}
         for r in trec_runs:
             docs = r.get_top_documents(topic, n=1000)
             run_docs[r] = docs
-            all_docs.update(docs)
+            # all_docs.update(docs)
 
 
         # Calculate scores using stored documents
@@ -198,7 +198,7 @@ def weighted_sumnorm(trec_runs, weights, max_docs=1000):
         sorted_docs = sorted(doc_scores.items(), key=lambda x: (-x[1], x[0]))[:max_docs]
 
         for rank, (docid, score) in enumerate(sorted_docs, start=1):
-            rows.append((topic, "Q0", docid, rank, score, "minmaxnorm"))
+            rows.append((topic, "Q0", docid, rank, score, "sumnorm"))
 
     merged_run = TrecRun(None)
     df = pd.DataFrame(rows)
