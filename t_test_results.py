@@ -5,7 +5,7 @@ from scipy.stats import ttest_rel
 results_dir = "results/ap_per_query"
 
 # Initialize a dictionary to store data grouped by fusion and weight methods
-grouped_data = {}
+grouped_data = {} 
 
 # Loop through all files in the results directory
 for file_name in os.listdir(results_dir):

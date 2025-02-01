@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-
+ 
 
 def average_on_all_results():
     path = 'results/full_fusion'
