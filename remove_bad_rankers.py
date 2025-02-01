@@ -2,7 +2,7 @@ import os
 from trectools import TrecRun
 
 
-def get_good_rankers_robust(dataset_path, n_queries=100, top_k_docs=1000):
+def get_good_rankers(dataset_path, n_queries=100, top_k_docs=1000):
     rankers = os.listdir(dataset_path)
     bad_rankers = ["input.humR03d (1).gz"]
     for ranker in rankers:

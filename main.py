@@ -3,23 +3,27 @@ import pandas as pd
 import os
 from tqdm import tqdm
 from fusion_methods import weighted_rrf, weighted_borda,weighted_min_max,weighted_sumnorm
-from remove_bad_rankers import get_good_rankers_robust
+from remove_bad_rankers import get_good_rankers
 from itertools import product
+from config import *
 
-if not os.path.exists("results/alone_scores"):
-    os.makedirs("results/alone_scores")
-if not os.path.exists("results/fusion_2"):
-    os.makedirs("results/fusion_2")
-if not os.path.exists("results/fusion_2/raw_results"):
-    os.makedirs("results/fusion_2/raw_results")
-if not os.path.exists("results/weights"):
-    os.makedirs("results/weights")
-if not os.path.exists("results/full_fusion"):
-    os.makedirs("results/full_fusion")
-if not os.path.exists("results/full_retrieval"):
-    os.makedirs("results/full_retrieval")
-if not os.path.exists("results/ap_per_query"):
-    os.makedirs("results/ap_per_query")
+datasets = ['ROBUST', 'ADHOC', 'ROUTING']
+
+for dataset in datasets:
+    if not os.path.exists(f"results/{dataset}/alone_scores"):
+        os.makedirs(f"results/{dataset}/alone_scores")
+    if not os.path.exists(f"results/{dataset}/fusion_2"):
+        os.makedirs(f"results/{dataset}/fusion_2")
+    if not os.path.exists(f"results/{dataset}/fusion_2/raw_results"):
+        os.makedirs(f"results/{dataset}/fusion_2/raw_results")
+    if not os.path.exists(f"results/{dataset}/weights"):
+        os.makedirs(f"results/{dataset}/weights")
+    if not os.path.exists(f"results/{dataset}/full_fusion"):
+        os.makedirs(f"results/{dataset}/full_fusion")
+    if not os.path.exists(f"results/{dataset}/full_retrieval"):
+        os.makedirs(f"results/{dataset}/full_retrieval")
+    if not os.path.exists(f"results/{dataset}/ap_per_query"):
+        os.makedirs(f"results/{dataset}/ap_per_query")
 
 
 def r_topics_intersection(r, qrels):
@@ -27,20 +31,27 @@ def r_topics_intersection(r, qrels):
     r.run_data = r.run_data[r.run_data["query"].isin(intersection)]
 
 
-def calc_scores_alone(fold, metric):
-    output_path = f"results/alone_scores/fold_{fold}_{metric}.csv"
+def calc_scores_alone(fold, metric, dataset):
+    output_path = f"results/{dataset}/alone_scores/fold_{fold}_{metric}.csv"
     if os.path.exists(output_path):
         return
     my_dict = {}
-    runs = get_good_rankers_robust()
-    dir_path = "data/per_fold_qrels"
+    runs = get_good_rankers(os.path.join("data", dataset), eval(f"{dataset}_n_queries"), eval(f"{dataset}_top_k_docs"))
+    dir_path = f"data/{dataset}/per_fold_qrels"
     qrels = TrecQrel(os.path.join(dir_path, f"fold_{fold}/train.txt"))
-    assert len(qrels.topics()) == 80
+    if dataset == "ROBUST":
+        assert len(qrels.topics()) == 80
+    else:
+        assert len(qrels.topics()) == 40
     for run in runs:
         r = TrecRun(os.path.join("data/ROBUST", run))
         r_topics_intersection(r, qrels)
-        # r.topics_intersection_with(qrels)
-        assert len(r.topics()) == 80
+
+        if dataset == "ROBUST":
+            assert len(r.topics()) == 80
+        else:
+            assert len(r.topics()) == 40
+        
         if metric == "map":
             score = TrecEval(r, qrels).get_map(depth=100)
         elif metric == "p@10":
@@ -53,20 +64,25 @@ def calc_scores_alone(fold, metric):
     df.to_csv(output_path)
 
 
-def fusion_2(fold, metric, fuse_method):
-    output_path = f"results/fusion_2/raw_results/fold_{fold}_{metric}_{fuse_method}.csv"
+def fusion_2(fold, metric, fuse_method, dataset):
+    output_path = f"results/{dataset}/fusion_2/raw_results/fold_{fold}_{metric}_{fuse_method}.csv"
     if os.path.exists(output_path):
         return
     my_dict = {}
-    runs = get_good_rankers_robust()
+    runs = get_good_rankers(os.path.join("data", dataset), eval(f"{dataset}_n_queries"), eval(f"{dataset}_top_k_docs"))
     for run in runs:
         assert "(1)" not in run
-    dir_path = "data/per_fold_qrels"
+    dir_path = f"data/{dataset}/per_fold_qrels"
     qrels = TrecQrel(os.path.join(dir_path, f"fold_{fold}/train.txt"))
-    assert len(qrels.topics()) == 80
+
+    if dataset == "ROBUST":
+        assert len(qrels.topics()) == 80
+    else:
+        assert len(qrels.topics()) == 40
+
     runs_alone = {}
     for run in runs:
-        r = TrecRun(os.path.join("data/ROBUST", run))
+        r = TrecRun(os.path.join("data", dataset, "rankers", run))
         runs_alone[run] = r
     for r1 in runs:
         for r2 in runs:
@@ -108,10 +124,10 @@ def fusion_2(fold, metric, fuse_method):
     df.to_csv(output_path, index=False)
 
 
-def get_full_fusion_weights(metric, fuse_method, weight_method):
+def get_full_fusion_weights(metric, fuse_method, weight_method, dataset):
     for i in range(1, 6):
-        alone_df = pd.read_csv(f"results/alone_scores/fold_{i}_{metric}.csv")
-        df = pd.read_csv(f"results/fusion_2/raw_results/fold_{i}_{metric}_{fuse_method}.csv")
+        alone_df = pd.read_csv(f"results/{dataset}/alone_scores/fold_{i}_{metric}.csv")
+        df = pd.read_csv(f"results/{dataset}/fusion_2/raw_results/fold_{i}_{metric}_{fuse_method}.csv")
         # Append rows from alone_df to df
         for _, row in alone_df.iterrows():
             r = row["Unnamed: 0"]
@@ -130,22 +146,22 @@ def get_full_fusion_weights(metric, fuse_method, weight_method):
             weight_df = weight_df[["r1", "weight"]]
         else:
             raise NotImplementedError
-        weight_df.to_csv(f"results/weights/fold_{i}_{metric}_{fuse_method}_{weight_method}.csv", index=False)
+        weight_df.to_csv(f"results/{dataset}/weights/fold_{i}_{metric}_{fuse_method}_{weight_method}.csv", index=False)
 
 
-def eval_full_fusion(weight_methods, metric, fuse_method):
-    dir_path = "results/full_fusion"
-    qrels_dir_path = "data/per_fold_qrels"
+def eval_full_fusion(weight_methods, metric, fuse_method, dataset):
+    dir_path = f"results/{dataset}/full_fusion"
+    qrels_dir_path = f"data/{dataset}/per_fold_qrels"
     output_path = os.path.join(dir_path, f"{metric}_{fuse_method}.csv")
 
     if os.path.exists(output_path):
         return pd.read_csv(output_path)
 
     results = []
-    runs = get_good_rankers_robust()
+    runs = get_good_rankers(os.path.join("data", dataset), eval(f"{dataset}_n_queries"), eval(f"{dataset}_top_k_docs"))
     for fold in tqdm(range(1, 6), desc="Processing folds"):
         qrels = TrecQrel(os.path.join(qrels_dir_path, f"fold_{fold}/test.txt"))
-        runs_alone = {run: TrecRun(os.path.join("data/ROBUST", run)) for run in runs}
+        runs_alone = {run: TrecRun(os.path.join("data", dataset, "rankers", run)) for run in runs}
         for r in runs_alone.values():
             r_topics_intersection(r, qrels)
         row = {"fold": fold}
@@ -155,7 +171,7 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
             trec_runs = []
 
             if weight_method == "metric":
-                alone_df = pd.read_csv(f"results/alone_scores/fold_{fold}_{metric}.csv")
+                alone_df = pd.read_csv(f"results/{dataset}/alone_scores/fold_{fold}_{metric}.csv")
                 for _, row_data in alone_df.iterrows():
                     run_name = row_data["Unnamed: 0"]
                     weight = row_data["score"]
@@ -163,7 +179,7 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
                     weights.append(weight)
 
             elif weight_method in ["diffscore", "ReLUdiffscore", "fuse2sumscore"]:
-                weights_df = pd.read_csv(f"results/weights/fold_{fold}_{metric}_{fuse_method}_{weight_method}.csv")
+                weights_df = pd.read_csv(f"results/{dataset}/weights/fold_{fold}_{metric}_{fuse_method}_{weight_method}.csv")
                 for _, row_data in weights_df.iterrows():
                     run_name = row_data["r1"]
                     weight = row_data["weight"]
@@ -185,9 +201,9 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
             else:
                 raise NotImplementedError
             trec_eval = TrecEval(fused_run, qrels)
-            fused_run.run_data.to_csv(f"results/full_retrieval/full_fold_{fold}_{fuse_method}_{weight_method}.csv", index=False)
+            fused_run.run_data.to_csv(f"results/{dataset}/full_retrieval/full_fold_{fold}_{fuse_method}_{weight_method}.csv", index=False)
             ap_score_per_query = trec_eval.get_map(depth=100,per_query=True)
-            ap_score_per_query.to_csv(f"results/ap_per_query/ap_fold_{fold}_{fuse_method}_{weight_method}.csv", index=False,header=False)
+            ap_score_per_query.to_csv(f"results/{dataset}/ap_per_query/ap_fold_{fold}_{fuse_method}_{weight_method}.csv", index=False,header=False)
             map_score = trec_eval.get_map(depth=100,per_query=False)
             p_at_10 = trec_eval.get_precision(depth=10)
             row[f"{weight_method}_map"] = map_score
@@ -201,25 +217,30 @@ def eval_full_fusion(weight_methods, metric, fuse_method):
 
 
 if __name__ == "__main__":
+
+    datasets = ['ADHOC', 'ROUTING', 'ROBUST']
+
     metrics = ["map", "p@10"]  # "map" or "p@10"
+
     fuse_methods = ["rrf", "borda", "minmaxnorm", "sumnorm"]  # "rrf" or "borda" or "minmaxnorm" or "sumnorm"
+
     # "diffscore" or "ReLUdiffscore" or "fuse2sumscore", previous methods are "metric" or "uniform"
     weight_methods = ["diffscore", "ReLUdiffscore", "fuse2sumscore", "metric", "uniform"]
 
-    my_list = product(metrics, fuse_methods)
-    for metric, fuse_method in tqdm(my_list, desc="iterating all metrics and fusion methods",
-                                    total=len(metrics) * len(fuse_methods)):
+    my_list = product(datasets, metrics, fuse_methods)
+    for dataset, metric, fuse_method in tqdm(my_list, desc="iterating all datasets, metrics and fusion methods",
+                                    total=len(my_list)):
         
         for fold in tqdm(range(1, 6), desc="Calculating scores alone"):
-            calc_scores_alone(fold, metric)
+            calc_scores_alone(fold, metric, dataset)
 
         for fold in tqdm(range(1, 6), desc="Calculating fusion2"):
-            fusion_2(fold, metric, fuse_method)
+            fusion_2(fold, metric, fuse_method, dataset)
 
         for weight_method in ["diffscore", "ReLUdiffscore", "fuse2sumscore"]:
-            get_full_fusion_weights(metric, fuse_method, weight_method=weight_method)
+            get_full_fusion_weights(metric, fuse_method, weight_method=weight_method, dataset=dataset)
 
-        full_res_df = eval_full_fusion(weight_methods, metric, fuse_method)
+        full_res_df = eval_full_fusion(weight_methods, metric, fuse_method, dataset)
         map_cols = [col for col in full_res_df.columns if col.endswith("_map")]
         p_cols = [col for col in full_res_df.columns if str(col).endswith("_p@10")]
         print(f"metric-{metric}, fuse_method-{fuse_method}:")
