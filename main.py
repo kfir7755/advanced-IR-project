@@ -24,6 +24,8 @@ for dataset in datasets:
         os.makedirs(f"results/{dataset}/full_retrieval")
     if not os.path.exists(f"results/{dataset}/ap_per_query"):
         os.makedirs(f"results/{dataset}/ap_per_query")
+    if not os.path.exists(f"results/{dataset}/p_at_10_per_query"):
+        os.makedirs(f"results/{dataset}/p_at_10_per_query")
 
 
 def r_topics_intersection(r, qrels):
@@ -201,9 +203,11 @@ def eval_full_fusion(weight_methods, metric, fuse_method, dataset):
             else:
                 raise NotImplementedError
             trec_eval = TrecEval(fused_run, qrels)
-            fused_run.run_data.to_csv(f"results/{dataset}/full_retrieval/full_fold_{fold}_{fuse_method}_{weight_method}.csv", index=False)
+            fused_run.run_data.to_csv(f"results/{dataset}/full_retrieval/full_fold_{fold}_{metric}_{fuse_method}_{weight_method}.csv", index=False)
             ap_score_per_query = trec_eval.get_map(depth=100,per_query=True)
-            ap_score_per_query.to_csv(f"results/{dataset}/ap_per_query/ap_fold_{fold}_{fuse_method}_{weight_method}.csv", index=False,header=False)
+            ap_score_per_query.to_csv(f"results/{dataset}/ap_per_query/ap_fold_{fold}_{metric}_{fuse_method}_{weight_method}.csv", index=False,header=False)
+            p_at_10_per_query = trec_eval.get_precision(depth=10,per_query=True)
+            p_at_10_per_query.to_csv(f"results/{dataset}/p_at_10_per_query/p_at_10_fold_{fold}_{metric}_{fuse_method}_{weight_method}.csv", index=False,header=False)
             map_score = trec_eval.get_map(depth=100,per_query=False)
             p_at_10 = trec_eval.get_precision(depth=10)
             row[f"{weight_method}_map"] = map_score
@@ -231,20 +235,20 @@ if __name__ == "__main__":
     for dataset, metric, fuse_method in tqdm(my_list, desc="iterating all datasets, metrics and fusion methods",
                                     total=len(datasets) * len(metrics) * len(fuse_methods)):
         
-        for fold in tqdm(range(1, 6), desc="Calculating scores alone"):
-            calc_scores_alone(fold, metric, dataset)
-
-        for fold in tqdm(range(1, 6), desc="Calculating fusion2"):
-            fusion_2(fold, metric, fuse_method, dataset)
-
-        for weight_method in ["diffscore", "ReLUdiffscore", "fuse2sumscore"]:
-            get_full_fusion_weights(metric, fuse_method, weight_method=weight_method, dataset=dataset)
+        # for fold in tqdm(range(1, 6), desc="Calculating scores alone"):
+        #     calc_scores_alone(fold, metric, dataset)
+        #
+        # for fold in tqdm(range(1, 6), desc="Calculating fusion2"):
+        #     fusion_2(fold, metric, fuse_method, dataset)
+        #
+        # for weight_method in ["diffscore", "ReLUdiffscore", "fuse2sumscore"]:
+        #     get_full_fusion_weights(metric, fuse_method, weight_method=weight_method, dataset=dataset)
 
         full_res_df = eval_full_fusion(weight_methods, metric, fuse_method, dataset)
-        map_cols = [col for col in full_res_df.columns if col.endswith("_map")]
-        p_cols = [col for col in full_res_df.columns if str(col).endswith("_p@10")]
-        print(f"metric-{metric}, fuse_method-{fuse_method}:")
-        print(full_res_df[map_cols])
-        print(full_res_df[map_cols].mean(axis=0))
-        print(full_res_df[p_cols])
-        print(full_res_df[p_cols].mean(axis=0))
+        # map_cols = [col for col in full_res_df.columns if col.endswith("_map")]
+        # p_cols = [col for col in full_res_df.columns if str(col).endswith("_p@10")]
+        # print(f"metric-{metric}, fuse_method-{fuse_method}:")
+        # print(full_res_df[map_cols])
+        # print(full_res_df[map_cols].mean(axis=0))
+        # print(full_res_df[p_cols])
+        # print(full_res_df[p_cols].mean(axis=0))
