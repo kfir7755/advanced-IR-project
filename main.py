@@ -235,20 +235,20 @@ if __name__ == "__main__":
     for dataset, metric, fuse_method in tqdm(my_list, desc="iterating all datasets, metrics and fusion methods",
                                     total=len(datasets) * len(metrics) * len(fuse_methods)):
         
-        # for fold in tqdm(range(1, 6), desc="Calculating scores alone"):
-        #     calc_scores_alone(fold, metric, dataset)
-        #
-        # for fold in tqdm(range(1, 6), desc="Calculating fusion2"):
-        #     fusion_2(fold, metric, fuse_method, dataset)
-        #
-        # for weight_method in ["diffscore", "ReLUdiffscore", "fuse2sumscore"]:
-        #     get_full_fusion_weights(metric, fuse_method, weight_method=weight_method, dataset=dataset)
+        for fold in tqdm(range(1, 6), desc="Calculating scores alone"):
+            calc_scores_alone(fold, metric, dataset)
+
+        for fold in tqdm(range(1, 6), desc="Calculating fusion2"):
+            fusion_2(fold, metric, fuse_method, dataset)
+
+        for weight_method in ["diffscore", "ReLUdiffscore", "fuse2sumscore"]:
+            get_full_fusion_weights(metric, fuse_method, weight_method=weight_method, dataset=dataset)
 
         full_res_df = eval_full_fusion(weight_methods, metric, fuse_method, dataset)
-        # map_cols = [col for col in full_res_df.columns if col.endswith("_map")]
-        # p_cols = [col for col in full_res_df.columns if str(col).endswith("_p@10")]
-        # print(f"metric-{metric}, fuse_method-{fuse_method}:")
-        # print(full_res_df[map_cols])
-        # print(full_res_df[map_cols].mean(axis=0))
-        # print(full_res_df[p_cols])
-        # print(full_res_df[p_cols].mean(axis=0))
+        map_cols = [col for col in full_res_df.columns if col.endswith("_map")]
+        p_cols = [col for col in full_res_df.columns if str(col).endswith("_p@10")]
+        print(f"metric-{metric}, fuse_method-{fuse_method}:")
+        print(full_res_df[map_cols])
+        print(full_res_df[map_cols].mean(axis=0))
+        print(full_res_df[p_cols])
+        print(full_res_df[p_cols].mean(axis=0))
